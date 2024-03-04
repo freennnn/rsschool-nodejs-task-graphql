@@ -6,6 +6,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
   fastify.route({
     url: '/',
     method: 'POST',
+    // apparentyly createGqlResponseSchema/gqlResponseSchema are just Typebox types for JSON
     schema: {
       ...createGqlResponseSchema,
       response: {
@@ -13,6 +14,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
       },
     },
     async handler(req) {
+
       return {};
     },
   });
