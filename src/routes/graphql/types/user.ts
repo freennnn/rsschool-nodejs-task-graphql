@@ -1,4 +1,3 @@
-//import { MemberTypeId } from '../../../routes/member-types/schemas.js';
 import {
   GraphQLObjectType,
   GraphQLString,
@@ -16,41 +15,25 @@ import { PrismaClient, User, Profile, Post } from '@prisma/client';
 import { UUIDType } from './scalars.js';
 
 interface Context {
-  // object that gets passed to every resolver function as the third argument
   prisma: PrismaClient;
 }
 
-// Define UUIDType locally (move to top)
-// export const UUIDType = new GraphQLScalarType({
-//   name: 'UUID',
-//   description: 'UUID custom scalar type',
-//   serialize(value) {
-//     return value;
-//   },
-//   parseValue(value) {
-//     return value;
-//   },
-//   parseLiteral(ast) {
-//     if (ast.kind === Kind.STRING) {
-//       return ast.value;
-//     }
-//     return null;
-//   },
-// });
-
-// --- Enum Types ---
+// =============================================================================
+// ENUMS
+// =============================================================================
 
 export const MemberTypeIdEnumType = new GraphQLEnumType({
   name: 'MemberTypeId',
   values: {
-    BASIC: { value: 'BASIC' }, // Changed to uppercase internal value
-    BUSINESS: { value: 'BUSINESS' }, // Changed to uppercase internal value
+    BASIC: { value: 'BASIC' },
+    BUSINESS: { value: 'BUSINESS' },
   },
 });
 
-// --- Input Types ---
+// =============================================================================
+// INPUT TYPES
+// =============================================================================
 
-// User
 const CreateUserInput = new GraphQLInputObjectType({
   name: 'CreateUserInput',
   fields: {
@@ -67,7 +50,6 @@ const ChangeUserInput = new GraphQLInputObjectType({
   },
 });
 
-// Profile
 const CreateProfileInput = new GraphQLInputObjectType({
   name: 'CreateProfileInput',
   fields: {
@@ -87,7 +69,6 @@ const ChangeProfileInput = new GraphQLInputObjectType({
   },
 });
 
-// Post
 const CreatePostInput = new GraphQLInputObjectType({
   name: 'CreatePostInput',
   fields: {
@@ -105,7 +86,9 @@ const ChangePostInput = new GraphQLInputObjectType({
   },
 });
 
-// --- Object Types ---
+// =============================================================================
+// OBJECT TYPES (using thunk functions for circular dependencies)
+// =============================================================================
 
 export const MemberTypeType = new GraphQLObjectType({
   name: 'MemberType',
@@ -157,10 +140,6 @@ export const PostType = new GraphQLObjectType({
   }),
 });
 
-// structure of the data objects graphql API can return
-// UserType must be defined after ProfileType and PostType if they reference it directly
-// and before if UserType references them (which is the case here via fields like 'profile' and 'posts').
-// The thunk wrapper `() => ({ ... })` for fields handles this circular dependency.
 export const UserType = new GraphQLObjectType({
   name: 'User',
   fields: () => ({
@@ -202,15 +181,13 @@ export const UserType = new GraphQLObjectType({
   }),
 });
 
-// Resolvers - fetching data from the database for a specific field in GraphQL schema
+// =============================================================================
+// RESOLVERS
+// =============================================================================
+
 export const rootResolvers: {
-  // Renamed from userResolvers to rootResolvers
   Query: GraphQLFieldConfigMap<unknown, Context>;
   Mutation: GraphQLFieldConfigMap<unknown, Context>;
-  User: GraphQLFieldConfigMap<User, Context>; // For User field resolvers
-  Profile: GraphQLFieldConfigMap<Profile, Context>; // For Profile field resolvers
-  Post: GraphQLFieldConfigMap<Post, Context>; // For Post field resolvers
-  // MemberType usually doesn't need field resolvers if fields are direct properties
 } = {
   Query: {
     // User Queries
@@ -224,13 +201,12 @@ export const rootResolvers: {
     },
     user: {
       type: UserType as GraphQLOutputType,
-      args: {
-        id: { type: new GraphQLNonNull(UUIDType) },
-      },
+      args: { id: { type: new GraphQLNonNull(UUIDType) } },
       resolve: async (_: unknown, { id }: { id: string }, { prisma }: Context) => {
         return prisma.user.findUnique({ where: { id } });
       },
     },
+
     // Profile Queries
     profiles: {
       type: new GraphQLNonNull(
@@ -242,13 +218,12 @@ export const rootResolvers: {
     },
     profile: {
       type: ProfileType as GraphQLOutputType,
-      args: {
-        id: { type: new GraphQLNonNull(UUIDType) },
-      },
+      args: { id: { type: new GraphQLNonNull(UUIDType) } },
       resolve: async (_: unknown, { id }: { id: string }, { prisma }: Context) => {
         return prisma.profile.findUnique({ where: { id } });
       },
     },
+
     // Post Queries
     posts: {
       type: new GraphQLNonNull(
@@ -260,13 +235,12 @@ export const rootResolvers: {
     },
     post: {
       type: PostType as GraphQLOutputType,
-      args: {
-        id: { type: new GraphQLNonNull(UUIDType) },
-      },
+      args: { id: { type: new GraphQLNonNull(UUIDType) } },
       resolve: async (_: unknown, { id }: { id: string }, { prisma }: Context) => {
         return prisma.post.findUnique({ where: { id } });
       },
     },
+
     // MemberType Queries
     memberTypes: {
       type: new GraphQLNonNull(
@@ -278,21 +252,18 @@ export const rootResolvers: {
     },
     memberType: {
       type: MemberTypeType as GraphQLOutputType,
-      args: {
-        id: { type: new GraphQLNonNull(MemberTypeIdEnumType) },
-      },
+      args: { id: { type: new GraphQLNonNull(MemberTypeIdEnumType) } },
       resolve: async (_: unknown, { id }: { id: string }, { prisma }: Context) => {
         return prisma.memberType.findUnique({ where: { id } });
       },
     },
   },
+
   Mutation: {
     // User Mutations
     createUser: {
       type: new GraphQLNonNull(UserType) as GraphQLOutputType,
-      args: {
-        dto: { type: new GraphQLNonNull(CreateUserInput) },
-      },
+      args: { dto: { type: new GraphQLNonNull(CreateUserInput) } },
       resolve: async (
         _: unknown,
         { dto }: { dto: { name: string; balance: number } },
@@ -316,21 +287,18 @@ export const rootResolvers: {
       },
     },
     deleteUser: {
-      type: new GraphQLNonNull(GraphQLBoolean) as GraphQLOutputType,
-      args: {
-        id: { type: new GraphQLNonNull(UUIDType) },
-      },
+      type: new GraphQLNonNull(GraphQLString) as GraphQLOutputType,
+      args: { id: { type: new GraphQLNonNull(UUIDType) } },
       resolve: async (_: unknown, { id }: { id: string }, { prisma }: Context) => {
         await prisma.user.delete({ where: { id } });
-        return true;
+        return 'User deleted successfully';
       },
     },
+
     // Profile Mutations
     createProfile: {
       type: new GraphQLNonNull(ProfileType) as GraphQLOutputType,
-      args: {
-        dto: { type: new GraphQLNonNull(CreateProfileInput) },
-      },
+      args: { dto: { type: new GraphQLNonNull(CreateProfileInput) } },
       resolve: async (
         _: unknown,
         {
@@ -369,21 +337,18 @@ export const rootResolvers: {
       },
     },
     deleteProfile: {
-      type: new GraphQLNonNull(GraphQLBoolean) as GraphQLOutputType,
-      args: {
-        id: { type: new GraphQLNonNull(UUIDType) },
-      },
+      type: new GraphQLNonNull(GraphQLString) as GraphQLOutputType,
+      args: { id: { type: new GraphQLNonNull(UUIDType) } },
       resolve: async (_: unknown, { id }: { id: string }, { prisma }: Context) => {
         await prisma.profile.delete({ where: { id } });
-        return true;
+        return 'Profile deleted successfully';
       },
     },
+
     // Post Mutations
     createPost: {
       type: new GraphQLNonNull(PostType) as GraphQLOutputType,
-      args: {
-        dto: { type: new GraphQLNonNull(CreatePostInput) },
-      },
+      args: { dto: { type: new GraphQLNonNull(CreatePostInput) } },
       resolve: async (
         _: unknown,
         { dto }: { dto: { title: string; content: string; authorId: string } },
@@ -407,18 +372,17 @@ export const rootResolvers: {
       },
     },
     deletePost: {
-      type: new GraphQLNonNull(GraphQLBoolean) as GraphQLOutputType,
-      args: {
-        id: { type: new GraphQLNonNull(UUIDType) },
-      },
+      type: new GraphQLNonNull(GraphQLString) as GraphQLOutputType,
+      args: { id: { type: new GraphQLNonNull(UUIDType) } },
       resolve: async (_: unknown, { id }: { id: string }, { prisma }: Context) => {
         await prisma.post.delete({ where: { id } });
-        return true;
+        return 'Post deleted successfully';
       },
     },
+
     // Subscription Management Mutations
     subscribeTo: {
-      type: new GraphQLNonNull(UserType) as GraphQLOutputType,
+      type: new GraphQLNonNull(GraphQLString) as GraphQLOutputType,
       args: {
         userId: { type: new GraphQLNonNull(UUIDType) },
         authorId: { type: new GraphQLNonNull(UUIDType) },
@@ -429,16 +393,13 @@ export const rootResolvers: {
         { prisma }: Context,
       ) => {
         await prisma.subscribersOnAuthors.create({
-          data: {
-            subscriberId: userId,
-            authorId: authorId,
-          },
+          data: { subscriberId: userId, authorId: authorId },
         });
-        return prisma.user.findUniqueOrThrow({ where: { id: authorId } });
+        return 'Subscription created successfully';
       },
     },
     unsubscribeFrom: {
-      type: new GraphQLNonNull(UserType) as GraphQLOutputType,
+      type: new GraphQLNonNull(GraphQLString) as GraphQLOutputType,
       args: {
         userId: { type: new GraphQLNonNull(UUIDType) },
         authorId: { type: new GraphQLNonNull(UUIDType) },
@@ -450,86 +411,11 @@ export const rootResolvers: {
       ) => {
         await prisma.subscribersOnAuthors.delete({
           where: {
-            subscriberId_authorId: {
-              subscriberId: userId,
-              authorId: authorId,
-            },
+            subscriberId_authorId: { subscriberId: userId, authorId: authorId },
           },
         });
-        return prisma.user.findUniqueOrThrow({ where: { id: authorId } });
+        return 'Unsubscribed successfully';
       },
     },
   },
-  User: {
-    // Field resolvers for UserType
-    profile: {
-      type: ProfileType as GraphQLOutputType,
-      resolve: async (parent: User, _: unknown, { prisma }: Context) => {
-        return prisma.profile.findUnique({
-          where: { userId: parent.id },
-        });
-      },
-    },
-    posts: {
-      type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(PostType))),
-      resolve: async (parent: User, _: unknown, { prisma }: Context) => {
-        return prisma.post.findMany({
-          where: { authorId: parent.id },
-        });
-      },
-    },
-    userSubscribedTo: {
-      type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(UserType))),
-      resolve: async (parent: User, _: unknown, { prisma }: Context) => {
-        const subscriptions = await prisma.subscribersOnAuthors.findMany({
-          where: { subscriberId: parent.id },
-          include: { author: true },
-        });
-        return subscriptions.map((sub) => sub.author);
-      },
-    },
-    subscribedToUser: {
-      type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(UserType))),
-      resolve: async (parent: User, _: unknown, { prisma }: Context) => {
-        const subscribers = await prisma.subscribersOnAuthors.findMany({
-          where: { authorId: parent.id },
-          include: { subscriber: true },
-        });
-        return subscribers.map((sub) => sub.subscriber);
-      },
-    },
-  },
-  Profile: {
-    // Field resolvers for ProfileType
-    user: {
-      type: new GraphQLNonNull(UserType),
-      resolve: async (parent: Profile, _: unknown, { prisma }: Context) => {
-        return prisma.user.findUniqueOrThrow({ where: { id: parent.userId } });
-      },
-    },
-    memberType: {
-      type: new GraphQLNonNull(MemberTypeType),
-      resolve: async (parent: Profile, _: unknown, { prisma }: Context) => {
-        return prisma.memberType.findUniqueOrThrow({
-          where: { id: parent.memberTypeId },
-        });
-      },
-    },
-  },
-  Post: {
-    // Field resolvers for PostType
-    author: {
-      type: new GraphQLNonNull(UserType),
-      resolve: async (parent: Post, _: unknown, { prisma }: Context) => {
-        return prisma.user.findUniqueOrThrow({ where: { id: parent.authorId } });
-      },
-    },
-  },
-  // MemberTypeType typically doesn't need field resolvers as its fields are direct scalar values.
 };
-
-// Note: Removed includes from top-level Query.user resolver as field resolvers will handle fetching related data.
-// This makes the individual field resolvers more reusable and explicit.
-// Adding back 'includes' in specific top-level queries if you want to eager load for performance
-// and know that those fields will always be requested.
-// However, relying on field resolvers is generally more idiomatic GraphQL.
