@@ -7,6 +7,7 @@ import {
   ProfileType,
   PostType,
   MemberTypeType,
+  createLoaders,
 } from './types/user.js';
 import { UUIDType } from './types/scalars.js';
 import { createGqlResponseSchema, gqlResponseSchema } from './schemas.js';
@@ -57,11 +58,14 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
         };
       }
 
+      // Create fresh DataLoaders for each request
+      const loaders = createLoaders(prisma);
+
       return graphql({
         schema,
         source: query,
         variableValues: variables,
-        contextValue: { prisma }, // Pass prisma client in context
+        contextValue: { prisma, ...loaders }, // Pass prisma client and loaders in context
       });
     },
   });
