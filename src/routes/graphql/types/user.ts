@@ -256,13 +256,31 @@ export const UserType = new GraphQLObjectType({
     },
     userSubscribedTo: {
       type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(UserType))),
-      resolve: async (parent: User, _: unknown, { userSubscribedToLoader }: Context) => {
+      resolve: async (
+        parent: User & { userSubscribedTo?: Array<{ authorId: string }> },
+        _: unknown,
+        { userSubscribedToLoader, userLoader }: Context,
+      ) => {
+        // Use included subscription data if available, otherwise fetch via DataLoader
+        if (parent.userSubscribedTo) {
+          const authorIds = parent.userSubscribedTo.map((sub) => sub.authorId);
+          return Promise.all(authorIds.map((id) => userLoader.load(id)));
+        }
         return userSubscribedToLoader.load(parent.id);
       },
     },
     subscribedToUser: {
       type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(UserType))),
-      resolve: async (parent: User, _: unknown, { subscribedToUserLoader }: Context) => {
+      resolve: async (
+        parent: User & { subscribedToUser?: Array<{ subscriberId: string }> },
+        _: unknown,
+        { subscribedToUserLoader, userLoader }: Context,
+      ) => {
+        // Use included subscription data if available, otherwise fetch via DataLoader
+        if (parent.subscribedToUser) {
+          const subscriberIds = parent.subscribedToUser.map((sub) => sub.subscriberId);
+          return Promise.all(subscriberIds.map((id) => userLoader.load(id)));
+        }
         return subscribedToUserLoader.load(parent.id);
       },
     },
@@ -289,14 +307,14 @@ export const rootResolvers: {
         context: Context,
         info: GraphQLResolveInfo,
       ) => {
-        const { prisma, userLoader, userSubscribedToLoader, subscribedToUserLoader } =
-          context;
+        const { prisma, userLoader } = context;
 
-        // Parse GraphQL resolve info to determine what relations to include
+        // Determine which subscription relations to include based on requested fields
         const includeUserSubscribedTo = shouldIncludeField(info, 'userSubscribedTo');
         const includeSubscribedToUser = shouldIncludeField(info, 'subscribedToUser');
 
-        const includeOptions: Record<string, boolean | object> = {};
+        // Build include options for subscription data
+        const includeOptions: Record<string, boolean> = {};
         if (includeUserSubscribedTo) {
           includeOptions.userSubscribedTo = true;
         }
@@ -304,18 +322,15 @@ export const rootResolvers: {
           includeOptions.subscribedToUser = true;
         }
 
-        // Fetch users with intelligent includes
+        // Fetch users with subscription data if needed
         const users = (await prisma.user.findMany({
           ...(Object.keys(includeOptions).length > 0 && { include: includeOptions }),
         })) as UserWithSubscriptions[];
 
-        // Prime the user loader cache
+        // Prime the user loader cache with fetched users
         users.forEach((user) => {
           userLoader.prime(user.id, user);
         });
-
-        // Note: With include: true, we only get junction table data without nested User objects
-        // Cache priming for subscription data would require additional queries
 
         return users;
       },
